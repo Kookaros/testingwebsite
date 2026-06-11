@@ -1,9 +1,10 @@
-<!-- <!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="el">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Client Weight Manager</title>
+<title>Ζυγολόγιο</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{
 --bg:#0f1117;
@@ -15,17 +16,20 @@
 --blue:#2563eb;
 --green:#10b981;
 --red:#ef4444;
+--orange:#f97316;
+--purple:#8b5cf6;
 }
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif}
 body{background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
 
-.container{display:flex;height:100vh;position:relative}
+/* Βασικό Layout */
+.container{display:flex;height:100vh;position:relative;overflow:hidden}
 
-/* Mobile Sidebar Overlays */
+/* Πλευρική Μπάρα (Sidebar) */
 .sidebar{
-width:280px;background:var(--panel);border-right:1px solid var(--border);
-display:flex;flex-direction:column;transition:transform 0.3s ease;
-z-index:100;
+width:320px;background:var(--panel);border-right:1px solid var(--border);
+display:flex;flex-direction:column;transition:transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+z-index:150;
 }
 .logo-container {
 display:flex;justify-content:space-between;align-items:center;padding:20px;
@@ -35,78 +39,147 @@ display:flex;justify-content:space-between;align-items:center;padding:20px;
 display:none;background:none;border:none;color:var(--text);font-size:24px;cursor:pointer;
 }
 .clients{flex:1;overflow-y:auto;padding:10px}
-.client{padding:12px;border-radius:10px;margin-bottom:8px;cursor:pointer;word-break:break-all}
+
+.client{
+display:flex;align-items:center;justify-content:space-between;
+padding:12px;border-radius:10px;margin-bottom:8px;cursor:pointer;
+gap:8px;background:rgba(255,255,255,0.02);
+}
 .client:hover{background:var(--panel2)}
 .client.active{background:var(--blue)}
-.sidebar-btn,.btn{border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer}
-.sidebar-btn{margin:15px;padding:12px;background:var(--green)}
+.client-info-wrapper {
+display:flex;flex-direction:column;flex:1;word-break:break-all;padding-right:4px;
+}
+.client-name {
+font-weight:600;font-size:15px;
+}
+.client-id-badge {
+font-size:11px;background:var(--panel2);color:var(--green);padding:2px 6px;
+border-radius:6px;font-weight:700;width:fit-content;margin-top:4px;
+border:1px solid var(--border);
+}
+.client.active .client-id-badge {
+background:rgba(255,255,255,0.15);color:#fff;border-color:transparent;
+}
+.rename-btn {
+background:var(--panel2);border:none;color:var(--muted);padding:6px 10px;
+border-radius:6px;font-size:12px;cursor:pointer;font-weight:600;transition:all 0.2s;
+align-self:center;
+}
+.client.active .rename-btn {
+background:rgba(255,255,255,0.2);color:white;
+}
+.rename-btn:hover {
+background:var(--orange) !important;color:white !important;
+}
 
-/* Main Content Area */
+.sidebar-btn,.btn{border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;transition:all 0.2s}
+.sidebar-btn{margin:15px;padding:14px;background:var(--green);font-size:15px}
+.sidebar-btn:hover{filter:brightness(1.1)}
+
+/* Κύριο Περιεχόμενο (Main Area) */
 .main{flex:1;padding:24px;overflow-y:auto;display:flex;flex-direction:column;gap:20px}
+
+/* Πάνω Μπάρα Πλοήγησης για Κινητά */
 .mobile-nav {
 display:none;align-items:center;gap:15px;background:var(--panel);
-padding:12px 20px;border-bottom:1px solid var(--border);
+padding:14px 20px;border-bottom:1px solid var(--border);
+position:sticky;top:0;z-index:120;
 }
 .menu-btn {
 background:none;border:none;color:var(--text);font-size:24px;cursor:pointer;
+display:inline-flex;align-items:center;justify-content:center;
 }
 
+/* Επικεφαλίδα & Χειριστήρια (Header & Controls) */
 .header{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}
+.title-area{display:flex;align-items:center;gap:15px;flex-wrap:wrap}
 .title{font-size:28px;font-weight:700;word-break:break-all}
 .controls{display:flex;gap:10px;flex-wrap:wrap;width:100%}
+
+.search-wrapper {
+display:flex;gap:10px;flex:2;min-width:260px;
+}
 .search,.input{
 background:#111827;color:white;border:1px solid var(--border);
-padding:12px;border-radius:10px;outline:none;
+padding:12px;border-radius:10px;outline:none;font-size:15px;
 }
-.search{flex:1;min-width:200px}
-.btn{padding:12px 16px;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center}
-.primary{background:var(--blue)}
+.search{flex:1;width:100%}
+.btn{padding:12px 18px;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;font-size:15px}
+.btn:hover{filter:brightness(1.1)}
+.primary{background:var(--blue);flex:1;min-width:160px}
 .danger{background:var(--red)}
+.secondary{background:#4b5563}
+.purple-btn{background:var(--purple)}
 
-/* Responsive Grid Cards */
+/* Κάρτες Στατιστικών */
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;width:100%}
-.card{background:var(--panel);padding:18px;border:1px solid var(--border);border-radius:14px}
+.card{background:var(--panel);padding:18px;border:1px solid var(--border);border-radius:14px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1)}
 .card .label{color:var(--muted);font-size:14px}
 .card .value{font-size:24px;font-weight:700;margin-top:8px;word-break:break-all}
 
-/* Responsive Table / Card setup */
-.table-wrap{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow-x:auto}
-table{width:100%;border-collapse:collapse;min-width:600px}
-th{background:#111827;padding:14px;text-align:left;font-size:14px;color:var(--muted)}
-td{padding:14px;border-top:1px solid var(--border);font-size:15px}
+/* Responsive Πίνας Δεδομένων */
+.table-wrap{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow-x:auto;width:100%}
+table{width:100%;border-collapse:collapse;min-width:700px}
+th{background:#111827;padding:16px 14px;text-align:left;font-size:14px;color:var(--muted);font-weight:600}
+td{padding:16px 14px;border-top:1px solid var(--border);font-size:15px}
 .lot{color:#64748b;font-style:italic}
-.action-btn{border:none;color:white;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px}
+.action-btn{border:none;color:white;padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px}
 .edit{background:var(--blue);margin-right:6px}
 .delete{background:var(--red)}
-.empty{text-align:center;padding:50px;color:var(--muted)}
+.empty{text-align:center;padding:50px;color:var(--muted);font-size:16px}
 
-/* Modal Adaptation */
-.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);justify-content:center;align-items:center;padding:15px;z-index:200}
+/* Παράθυρα (Modals) */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);justify-content:center;align-items:center;padding:15px;z-index:250}
 .modal-content{width:100%;max-width:520px;background:var(--panel);padding:24px;border-radius:16px;border:1px solid var(--border);max-height:90vh;overflow-y:auto}
-.modal-content h2{margin-bottom:20px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-content h2{margin-bottom:20px;font-size:22px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .full{grid-column:1/-1}
-.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:24px}
 
-/* BREAKPOINTS FOR MOBILE & TABLETS */
-@media(max-width:1024px){
-    .stats{grid-template-columns:repeat(3,1fr)}
+/* Overlay για το κλείσιμο του Sidebar στα κινητά */
+.sidebar-overlay {
+display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:140;
 }
 
-@media(max-width:768px){
-    .container{flex-direction:column;height:auto;min-height:100vh}
-    .sidebar{
-        position:fixed;top:0;left:0;bottom:0;transform:translateX(-100%);
-        width:280px;height:100vh;box-shadow:5px 0 15px rgba(0,0,0,0.5);
+/* RESPONSIVE MEDIA QUERIES */
+@media (max-width: 992px) {
+    .stats { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 768px) {
+    .mobile-nav { display:flex; }
+    
+    .sidebar {
+        position: fixed;
+        left: 0; top: 0; bottom: 0;
+        transform: translateX(-100%);
+        box-shadow: 5px 0 25px rgba(0,0,0,0.5);
     }
-    .sidebar.open{transform:translateX(0)}
-    .close-sidebar {display:block}
-    .mobile-nav{display:flex}
-    .main{padding:15px;height:auto;overflow:visible}
-    .stats{grid-template-columns:1fr}
-    .controls{flex-direction:column}
-    .search,.btn{width:100%}
-    .grid{grid-template-columns:1fr}
+    .sidebar.open {
+        transform: translateX(0);
+    }
+    .sidebar.open + .sidebar-overlay {
+        display: block;
+    }
+    .close-sidebar { display: block; }
+    
+    .main { padding: 16px; gap: 16px; }
+    .title { font-size: 24px; }
+    
+    .stats { grid-template-columns: 1fr; gap: 12px; }
+    
+    .controls { flex-direction: column; }
+    .search-wrapper { width: 100%; }
+    .primary { order: -1; width: 100%; }
+    .danger { width: 100%; }
+}
+
+@media (max-width: 480px) {
+    .grid { grid-template-columns: 1fr; }
+    .modal-content { padding: 16px; }
+    .modal-actions { flex-direction: column; }
+    .modal-actions .btn { width: 100%; }
 }
 </style>
 </head>
@@ -114,60 +187,108 @@ td{padding:14px;border-top:1px solid var(--border);font-size:15px}
 
 <div class="mobile-nav">
     <button class="menu-btn" onclick="toggleSidebar()">☰</button>
-    <div style="font-weight:700;font-size:18px">Weight Manager</div>
+    <div style="font-weight:700;font-size:18px">Ζυγολόγιο</div>
 </div>
 
 <div class="container">
-<div class="sidebar" id="sidebarNav">
-<div class="logo-container">
-    <div class="logo">Clients</div>
-    <button class="close-sidebar" onclick="toggleSidebar()">✕</button>
-</div>
-<div class="clients" id="clients"></div>
-<button class="sidebar-btn" onclick="addClient()">+ New Client</button>
-</div>
+    <div class="sidebar" id="sidebarNav">
+        <div class="logo-container">
+            <div class="logo">Πελάτες</div>
+            <button class="close-sidebar" onclick="toggleSidebar()">✕</button>
+        </div>
+        <div class="clients" id="clients"></div>
+        <button class="sidebar-btn" onclick="addClient()">+ Νέος Πελάτης</button>
+    </div>
+    
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
-<div class="main">
-<div class="header">
-<div class="title" id="title">Select Client</div>
-<div class="controls">
-<input class="search" id="search" placeholder="Search code..." oninput="renderTable()">
-<button class="btn primary" onclick="openModal()">+ Add Item</button>
-<button class="btn danger" onclick="deleteClient()">Delete Client</button>
-</div>
-</div>
+    <div class="main">
+        <div class="header">
+            <div class="title-area">
+                <div class="title" id="title">Επιλέξτε Πελάτη</div>
+                <button class="btn purple-btn" id="exportMainBtn" style="display:none; padding:8px 14px; font-size:14px;" onclick="openExportModal()">Εξαγωγή</button>
+            </div>
+            <div class="controls">
+                <div class="search-wrapper">
+                    <button class="btn secondary" onclick="clearSearch()">Καθαρισμός</button>
+                    <input class="search" id="search" placeholder="Αναζήτηση κωδικού..." oninput="renderTable()">
+                </div>
+                <button class="btn primary" onclick="openModal()">+ Προσθήκη Προϊόντος</button>
+                <button class="btn danger" onclick="deleteClient()">Διαγραφή Πελάτη</button>
+            </div>
+        </div>
 
-<div class="stats">
-<div class="card"><div class="label">Total Items</div><div class="value" id="items">0</div></div>
-<div class="card"><div class="label">Total Quantity</div><div class="value" id="qty">0</div></div>
-<div class="card"><div class="label">Total Net Weight</div><div class="value" id="net">0</div></div>
-</div>
+        <div class="stats">
+            <div class="card"><div class="label">Σύνολο Προϊόντων</div><div class="value" id="items">0</div></div>
+            <div class="card"><div class="label">Συνολική Ποσότητα</div><div class="value" id="qty">0</div></div>
+            <div class="card"><div class="label">Συνολικό Καθαρό Βάρος</div><div class="value" id="net">0</div></div>
+        </div>
 
-<div id="content"></div>
-</div>
+        <div id="content"></div>
+    </div>
 </div>
 
 <div class="modal" id="modal">
 <div class="modal-content">
-<h2 id="modalTitle">Add Item</h2>
+<h2 id="modalTitle">Προσθήκη Προϊόντος</h2>
 
 <div class="grid">
-<input id="code" class="input full" placeholder="Code">
-<input id="quantity" class="input" type="number" placeholder="Quantity" oninput="calcWeight()">
-<input id="weight" class="input" type="number" placeholder="Weight" oninput="calcWeight()">
-<input id="tare" class="input" type="number" placeholder="Tare" oninput="calcWeight()">
-<input id="newWeight" class="input full" placeholder="Net Weight" readonly>
+<input id="code" class="input full" placeholder="Κωδικός" style="text-transform: uppercase;" enterkeyhint="next">
+<input id="quantity" class="input" type="number" placeholder="Ποσότητα" oninput="calcWeight()" enterkeyhint="next">
+<input id="weight" class="input" type="number" placeholder="Μικτό Βάρος" oninput="calcWeight()" enterkeyhint="next">
+<input id="tare" class="input" type="number" placeholder="Απόβαρο" oninput="calcWeight()" enterkeyhint="done">
+<input id="newWeight" class="input full" placeholder="Καθαρό Βάρος" readonly>
 </div>
 
 <div class="modal-actions">
-<button class="btn" style="background:#4b5563" onclick="closeModal()">Cancel</button>
-<button class="btn primary" id="saveBtn" onclick="saveItem()">Add</button>
+<button class="btn" style="background:#4b5563" onclick="closeModal()">Ακύρωση</button>
+<button class="btn primary" id="saveBtn" onclick="saveItem()">Προσθήκη</button>
+</div>
+</div>
+</div>
+
+<div class="modal" id="exportModal">
+<div class="modal-content">
+<h2>Εξαγωγή Δεδομένων</h2>
+<p style="color:var(--muted); margin-bottom:20px; font-size:14px;">Επιλέξτε αν θέλετε να κάνετε λήψη του αρχείου Excel απευθείας στη συσκευή σας ή να το στείλετε αυτόματα ως συνημμένο .xlsx μέσω email.</p>
+
+<div style="display:flex; flex-direction:column; gap:12px;">
+    <button class="btn primary" onclick="downloadExcel()">⬇ Λήψη Αρχείου Excel (.xlsx)</button>
+    <button class="btn purple-btn" id="emailSendBtn" onclick="sendBrevoEmail()">✉ Αποστολή Αναφοράς μέσω Email</button>
+</div>
+
+<div class="modal-actions">
+<button class="btn" style="background:#4b5563" onclick="closeExportModal()">Κλείσιμο</button>
 </div>
 </div>
 </div>
 
 <script>
-let data=JSON.parse(localStorage.getItem('clientWeightData'))||{};
+// --- ΣΤΑΤΙΚΕΣ ΡΥΘΜΙΣΕΙΣ ---
+const CONFIG = {
+    brevoApiKey: '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',
+    recipientEmail: 'pappaszugologio@gmail.com'
+};
+
+let rawData = localStorage.getItem('clientWeightData');
+let data = {};
+
+try {
+    let parsed = JSON.parse(rawData) || {};
+    Object.keys(parsed).forEach(key => {
+        if (Array.isArray(parsed[key])) {
+            data[key] = {
+                id: Math.floor(10000 + Math.random() * 90000).toString(),
+                items: parsed[key]
+            };
+        } else {
+            data[key] = parsed[key];
+        }
+    });
+} catch(e) {
+    data = {};
+}
+
 let selectedClient=null;
 let editingIndex=null;
 
@@ -180,30 +301,67 @@ function toggleSidebar() {
     sidebar.classList.toggle('open');
 }
 
+function convertToGreekUppercase(str) {
+    const map = {
+        'A': 'Α', 'B': 'Β', 'C': 'Ψ', 'D': 'Δ', 'E': 'Ε', 'F': 'Φ', 'G': 'Γ', 'H': 'Η',
+        'I': 'Ι', 'J': 'Ξ', 'K': 'Κ', 'L': 'Λ', 'M': 'Μ', 'N': 'Ν', 'O': 'Ο', 'P': 'Π',
+        'Q': '::', 'R': 'Ρ', 'S': 'Σ', 'T': 'Τ', 'U': 'Θ', 'V': 'Ω', 'W': 'Σ', 'X': 'Χ',
+        'Y': 'Υ', 'Z': 'Ζ'
+    };
+    return str.toUpperCase().split('').map(char => map[char] || char).join('');
+}
+
 function calcWeight(){
 const q=parseFloat(quantity.value)||0;
 const w=parseFloat(weight.value)||0;
 const t=parseFloat(tare.value)||0;
-// Fixed math structure to maintain clean decimals
 newWeight.value=(w-(t*q)).toFixed(2);
 }
 
 function addClient(){
-const name=prompt('Client name:');
+const name=prompt('Όνομα Πελάτη:');
 if(!name)return;
-if(data[name]) return alert('Client already exists');
-data[name]=[];
+if(data[name]) return alert('Ο πελάτης υπάρχει ήδη');
+
+const uniqueId = Math.floor(10000 + Math.random() * 90000).toString();
+
+data[name] = {
+    id: uniqueId,
+    items: []
+};
+
 selectedClient=name;
 saveStorage();
 renderClients();
 renderTable();
-// Auto-close menu on mobile selection
 if(window.innerWidth <= 768) toggleSidebar();
 }
 
+function renameClient(oldName, event) {
+    if(event) event.stopPropagation();
+    
+    const newName = prompt(`Μετονομασία πελάτη "${oldName}" σε:`, oldName);
+    if (!newName || newName.trim() === "") return;
+    
+    const cleanName = newName.trim();
+    if (cleanName === oldName) return;
+    if (data[cleanName]) return alert('Υπάρχει ήδη πελάτης με αυτό το όνομα');
+    
+    data[cleanName] = data[oldName];
+    delete data[oldName];
+    
+    if (selectedClient === oldName) {
+        selectedClient = cleanName;
+    }
+    
+    saveStorage();
+    renderClients();
+    renderTable();
+}
+
 function deleteClient(){
-if(!selectedClient)return alert('Select a client first');
-if(confirm('Delete client?')){
+if(!selectedClient)return alert('Επιλέξτε έναν πελάτη πρώτα');
+if(confirm('Θέλετε σίγουρα να διαγράψετε τον πελάτη;')){
 delete data[selectedClient];
 selectedClient=Object.keys(data)[0]||null;
 saveStorage();
@@ -212,31 +370,48 @@ renderTable();
 }
 }
 
+function clearSearch() {
+    search.value = '';
+    renderTable();
+}
+
 function renderClients(){
 clients.innerHTML='';
 Object.keys(data).forEach(c=>{
 const div=document.createElement('div');
 div.className='client'+(c===selectedClient?' active':'');
-div.textContent=c;
+
+div.innerHTML = `
+    <div class="client-info-wrapper">
+        <span class="client-name">${c}</span>
+        <span class="client-id-badge">${data[c].id}</span>
+    </div>
+    <button class="rename-btn" onclick="renameClient('${c}', event)">Μετονομασία</button>
+`;
+
 div.onclick=()=>{
 selectedClient=c;
 renderClients();
 renderTable();
-if(window.innerWidth <= 768) toggleSidebar(); // Auto-collapse navigation drawer on mobile
+if(window.innerWidth <= 768) toggleSidebar();
 };
 clients.appendChild(div);
 });
 }
 
 function renderTable(){
-title.textContent=selectedClient||'Select Client';
+title.textContent=selectedClient||'Επιλέξτε Πελάτη';
+const exportBtn = document.getElementById('exportMainBtn');
 
 if(!selectedClient){
-content.innerHTML='<div class="empty">No client selected</div>';
+content.innerHTML='<div class="empty">Δεν έχει επιλεγεί πελάτης</div>';
+exportBtn.style.display = 'none';
 return;
 }
 
-let itemsArr=data[selectedClient];
+exportBtn.style.display = 'inline-block';
+
+let itemsArr=data[selectedClient].items || [];
 let searchText=search.value.toLowerCase();
 
 let filtered=itemsArr.filter(x=>x.code.toLowerCase().includes(searchText));
@@ -244,12 +419,11 @@ let filtered=itemsArr.filter(x=>x.code.toLowerCase().includes(searchText));
 items.textContent=filtered.length;
 qty.textContent=filtered.reduce((a,b)=>a+Number(b.quantity),0);
 
-// Rounding weights to avoiding strange JS decimal artifacts (e.g. 14.000000002)
 let totalNet = filtered.reduce((a,b)=>a+Number(b.newWeight),0);
 net.textContent=totalNet.toFixed(2);
 
 if(filtered.length===0){
-content.innerHTML='<div class="empty">No items found</div>';
+content.innerHTML='<div class="empty">Δεν βρέθηκαν προϊόντα</div>';
 return;
 }
 
@@ -268,8 +442,8 @@ rows+=`
 <td>${item.newWeight}</td>
 <td>
 <div style="display:flex;">
-<button class="action-btn edit" onclick="editItem(${realIndex})">Edit</button>
-<button class="action-btn delete" onclick="deleteItem(${realIndex})">Delete</button>
+<button class="action-btn edit" onclick="editItem(${realIndex})">Επεξεργασία</button>
+<button class="action-btn delete" onclick="deleteItem(${realIndex})">Διαγραφή</button>
 </div>
 </td>
 </tr>`;
@@ -280,13 +454,13 @@ content.innerHTML=`
 <table>
 <thead>
 <tr>
-<th>Code</th>
-<th>Lot Number</th>
-<th>Quantity</th>
-<th>Weight</th>
-<th>Tare</th>
-<th>Net Weight</th>
-<th>Action</th>
+<th>Κωδικός</th>
+<th>Αριθμός Παρτίδας</th>
+<th>Ποσότητα</th>
+<th>Μικτό Βάρος</th>
+<th>Απόβαρο </th>
+<th>Καθαρό Βάρος</th>
+<th>Ενέργεια</th>
 </tr>
 </thead>
 <tbody>${rows}</tbody>
@@ -295,26 +469,12 @@ content.innerHTML=`
 }
 
 function openModal(){
-if(!selectedClient) return alert('Select a client first');
+if(!selectedClient) return alert('Επιλέξτε έναν πελάτη πρώτα');
 editingIndex=null;
-modalTitle.textContent='Add Item';
-saveBtn.textContent='Add';
+modalTitle.textContent='Προσθήκη Προϊόντος';
+saveBtn.textContent='Προσθήκη';
 modal.style.display='flex';
-}
-
-function editItem(index){
-const item=data[selectedClient][index];
-editingIndex=index;
-
-code.value=item.code;
-quantity.value=item.quantity;
-weight.value=item.weight;
-tare.value=item.tare;
-newWeight.value=item.newWeight;
-
-modalTitle.textContent='Edit Item';
-saveBtn.textContent='Save';
-modal.style.display='flex';
+setTimeout(() => code.focus(), 100); // Αυτόματη εστίαση στο πρώτο πεδίο
 }
 
 function closeModal(){
@@ -327,13 +487,148 @@ tare.value='';
 newWeight.value='';
 }
 
+/* EXPORT FUNCTIONS */
+function openExportModal() {
+    document.getElementById('exportModal').style.display = 'flex';
+}
+
+function closeExportModal() {
+    document.getElementById('exportModal').style.display = 'none';
+}
+
+function generateExcelData() {
+    let itemsArr = data[selectedClient].items || [];
+    
+    let worksheetRows = itemsArr.map(item => ({
+        "Κωδικός": item.code,
+        "Αριθμός Παρτίδας ": item.lotNumber || '',
+        "Ποσότητα ": item.quantity,
+        "Μικτό Βάρος ": item.weight,
+        "Απόβαρο ": item.tare,
+        "Καθαρό Βάρος ": item.newWeight
+    }));
+
+    // let totalItems = itemsArr.length;
+    // let totalQty = itemsArr.reduce((a, b) => a + Number(b.quantity), 0);
+    // let totalNet = itemsArr.reduce((a, b) => a + Number(b.newWeight), 0);
+
+    // worksheetRows.push({});
+    // worksheetRows.push({ "Κωδικός ": "ΣΥΝΟΛΙΚΑ ΣΤΟΙΧΕΙΑ (SUMMARY)" });
+    // worksheetRows.push({ "Κωδικός ": "Σύνολο Προϊόντων:", "Αριθμός Παρτίδας ": totalItems });
+    // worksheetRows.push({ "Κωδικός ": "Συνολική Ποσότητα:", "Αριθμός Παρτίδας ": totalQty });
+    // worksheetRows.push({ "Κωδικός ": "Συνολικό Καθαρό Βάρος:", "Αριθμός Παρτίδας ": Number(totalNet.toFixed(2)) });
+
+    return worksheetRows;
+}
+
+function downloadExcel() {
+    if (!selectedClient) return;
+    let worksheetRows = generateExcelData();
+    
+    const ws = XLSX.utils.json_to_sheet(worksheetRows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Ζυγολόγιο");
+    
+    XLSX.writeFile(wb, `${selectedClient}.xlsx`);
+}
+
+async function sendBrevoEmail() {
+    const apiKey = CONFIG.brevoApiKey.trim();
+    const recipient = CONFIG.recipientEmail.trim();
+    const btn = document.getElementById('emailSendBtn');
+    
+    if(!apiKey) return alert("Σφάλμα: Λείπει το κλειδί Brevo API.");
+    if(!recipient) return alert("Σφάλμα: Λείπει το email παραλήπτη.");
+
+    btn.textContent = "Δημιουργία αρχείου & Αποστολή...";
+    btn.disabled = true;
+
+    let clientObject = data[selectedClient];
+    let clientId = clientObject.id;
+
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const yyyy = today.getFullYear();
+    const formattedDate = `${dd}/${mm}/${yyyy}`;
+
+    let worksheetRows = generateExcelData();
+    const ws = XLSX.utils.json_to_sheet(worksheetRows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Ζυγολόγιο");
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
+
+    let emailHtmlContent = `
+        <div style="font-family: sans-serif; color: #333; max-width: 600px; padding: 10px;">
+            <p>Παρακαλώ βρείτε το ζητούμενο αρχείο αναφοράς Excel συνημμένο παρακάτω.</p>
+        </div>
+    `;
+
+    const endpoint = 'https://api.brevo.com/v3/smtp/email';
+    const payload = {
+        sender: { name: "Ζυγολόγιο", email: "kookydynamo@gmail.com" },
+        to: [{ email: recipient }],
+        subject: `${selectedClient} | ${clientId} | ${formattedDate}`,
+        htmlContent: emailHtmlContent,
+        attachment: [
+            {
+                content: wbout,
+                name: `${selectedClient}.xlsx`
+            }
+        ]
+    };
+
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'accept': 'application/json',
+                'api-key': apiKey,
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            alert(`Το email με το συνημμένο αρχείο Excel στάλθηκε επιτυχώς στο ${recipient}!`);
+            closeExportModal();
+        } else {
+            const errData = await response.json();
+            alert("Αποτυχία αποστολής email: " + (errData.message || response.statusText));
+        }
+    } catch (error) {
+        alert("Παρουσιάστηκε σφάλμα κατά τη σύνδεση με το Brevo API: " + error.message);
+    } finally {
+        btn.textContent = "✉ Αποστολή Αναφοράς μέσω Email";
+        btn.disabled = false;
+    }
+}
+
+function editItem(index){
+    const item=data[selectedClient].items[index];
+    editingIndex=index;
+
+    code.value=item.code;
+    quantity.value=item.quantity;
+    weight.value=item.weight;
+    tare.value=item.tare;
+    newWeight.value=item.newWeight;
+
+    modalTitle.textContent = 'Επεξεργασία Προϊόντος';
+    saveBtn.textContent = 'Αποθήκευση';
+    modal.style.display='flex';
+    setTimeout(() => code.focus(), 100);
+}
+
 function saveItem(){
 const q=Number(quantity.value);
 const w=Number(weight.value);
 const t=Number(tare.value);
 
+let transformedCode = convertToGreekUppercase(code.value.trim());
+
 const item={
-code:code.value.trim(),
+code: transformedCode,
 lotNumber:'',
 quantity:q,
 weight:w,
@@ -342,14 +637,14 @@ newWeight:Number((w-(t*q)).toFixed(2))
 };
 
 if(!item.code || isNaN(item.quantity) || isNaN(item.weight) || isNaN(item.tare)){
-alert('Fill all fields with valid numbers');
+alert('Παρακαλούμε συμπληρώστε όλα τα πεδία με έγκυρους αριθμούς');
 return;
 }
 
 if(editingIndex!==null){
-data[selectedClient][editingIndex]=item;
+data[selectedClient].items[editingIndex]=item;
 }else{
-data[selectedClient].push(item);
+data[selectedClient].items.push(item);
 }
 
 saveStorage();
@@ -358,53 +653,35 @@ renderTable();
 }
 
 function deleteItem(index){
-if(confirm('Delete item?')){
-data[selectedClient].splice(index,1);
+if(confirm('Θέλετε να διαγράψετε αυτό το προϊόν;')){
+data[selectedClient].items.splice(index,1);
 saveStorage();
 renderTable();
 }
 }
 
+// --- LOGIC ΓΙΑ ΠΛΟΗΓΗΣΗ ΜΕ ΤΟ ENTER/NEXT ΤΟΥ ΠΛΗΚΤΡΟΛΟΓΙΟΥ ---
+const modalInputs = [code, quantity, weight, tare];
+
+modalInputs.forEach((input, index) => {
+    input.addEventListener('keydown', function(e) {
+        // Έλεγχος αν πατήθηκε το Enter (κωδικός 13)
+        if (e.key === 'Enter' || e.keyCode === 13) {
+            e.preventDefault(); // Αποφυγή προεπιλεγμένης συμπεριφοράς υποβολής φόρμας
+            
+            if (index < modalInputs.length - 1) {
+                // Εάν υπάρχουν επόμενα πεδία, μετακινήσου στο επόμενο
+                modalInputs[index + 1].focus();
+            } else {
+                // Εάν βρισκόμαστε στο τελευταίο πεδίο (Απόβαρο), κάνε αυτόματη αποθήκευση
+                saveItem();
+            }
+        }
+    });
+});
+
 renderClients();
 renderTable();
 </script>
-</body>
-</html> -->
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Centered GIF</title>
-
-<style>
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-    }
-
-    body {
-        width: 100vw;
-        height: 100vh;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        background: #000;
-        overflow: hidden;
-    }
-
-    img {
-        max-width: 90vw;
-        max-height: 90vh;
-        object-fit: contain;
-    }
-</style>
-</head>
-<body>
-
-<img src="middlefinger.gif" alt="Centered GIF">
-
 </body>
 </html>
