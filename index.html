@@ -16,56 +16,113 @@
 --green:#10b981;
 --red:#ef4444;
 }
-*{margin:0;padding:0;box-sizing:border-box;font-family:Segoe UI,sans-serif}
-body{background:var(--bg);color:var(--text);height:100vh}
-.container{display:flex;height:100vh}
-.sidebar{width:280px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column}
-.logo{padding:20px;font-size:22px;font-weight:700}
-.clients{flex:1;overflow:auto;padding:10px}
-.client{padding:12px;border-radius:10px;margin-bottom:8px;cursor:pointer}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif}
+body{background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+.container{display:flex;height:100vh;position:relative}
+
+/* Mobile Sidebar Overlays */
+.sidebar{
+width:280px;background:var(--panel);border-right:1px solid var(--border);
+display:flex;flex-direction:column;transition:transform 0.3s ease;
+z-index:100;
+}
+.logo-container {
+display:flex;justify-content:space-between;align-items:center;padding:20px;
+}
+.logo{font-size:22px;font-weight:700}
+.close-sidebar {
+display:none;background:none;border:none;color:var(--text);font-size:24px;cursor:pointer;
+}
+.clients{flex:1;overflow-y:auto;padding:10px}
+.client{padding:12px;border-radius:10px;margin-bottom:8px;cursor:pointer;word-break:break-all}
 .client:hover{background:var(--panel2)}
 .client.active{background:var(--blue)}
 .sidebar-btn,.btn{border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer}
 .sidebar-btn{margin:15px;padding:12px;background:var(--green)}
-.main{flex:1;padding:24px;overflow:auto}
-.header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-.title{font-size:30px;font-weight:700}
-.controls{display:flex;gap:10px;flex-wrap:wrap}
+
+/* Main Content Area */
+.main{flex:1;padding:24px;overflow-y:auto;display:flex;flex-direction:column;gap:20px}
+.mobile-nav {
+display:none;align-items:center;gap:15px;background:var(--panel);
+padding:12px 20px;border-bottom:1px solid var(--border);
+}
+.menu-btn {
+background:none;border:none;color:var(--text);font-size:24px;cursor:pointer;
+}
+
+.header{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}
+.title{font-size:28px;font-weight:700;word-break:break-all}
+.controls{display:flex;gap:10px;flex-wrap:wrap;width:100%}
 .search,.input{
 background:#111827;color:white;border:1px solid var(--border);
-padding:12px;border-radius:10px
+padding:12px;border-radius:10px;outline:none;
 }
-.search{width:280px}
-.btn{padding:12px 16px}
+.search{flex:1;min-width:200px}
+.btn{padding:12px 16px;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center}
 .primary{background:var(--blue)}
 .danger{background:var(--red)}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin:20px 0}
+
+/* Responsive Grid Cards */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;width:100%}
 .card{background:var(--panel);padding:18px;border:1px solid var(--border);border-radius:14px}
-.card .label{color:var(--muted)}
-.card .value{font-size:28px;font-weight:700;margin-top:8px}
-.table-wrap{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden}
-table{width:100%;border-collapse:collapse}
-th{background:#111827;padding:14px;text-align:left}
-td{padding:14px;border-top:1px solid var(--border)}
+.card .label{color:var(--muted);font-size:14px}
+.card .value{font-size:24px;font-weight:700;margin-top:8px;word-break:break-all}
+
+/* Responsive Table / Card setup */
+.table-wrap{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:600px}
+th{background:#111827;padding:14px;text-align:left;font-size:14px;color:var(--muted)}
+td{padding:14px;border-top:1px solid var(--border);font-size:15px}
 .lot{color:#64748b;font-style:italic}
-.action-btn{border:none;color:white;padding:8px 10px;border-radius:8px;cursor:pointer}
+.action-btn{border:none;color:white;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px}
 .edit{background:var(--blue);margin-right:6px}
 .delete{background:var(--red)}
 .empty{text-align:center;padding:50px;color:var(--muted)}
-.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);justify-content:center;align-items:center}
-.modal-content{width:520px;background:var(--panel);padding:20px;border-radius:16px;border:1px solid var(--border)}
-.modal-content h2{margin-bottom:15px}
+
+/* Modal Adaptation */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);justify-content:center;align-items:center;padding:15px;z-index:200}
+.modal-content{width:100%;max-width:520px;background:var(--panel);padding:24px;border-radius:16px;border:1px solid var(--border);max-height:90vh;overflow-y:auto}
+.modal-content h2{margin-bottom:20px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .full{grid-column:1/-1}
-.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:15px}
-@media(max-width:900px){.stats{grid-template-columns:1fr}.sidebar{width:220px}}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+
+/* BREAKPOINTS FOR MOBILE & TABLETS */
+@media(max-width:1024px){
+    .stats{grid-template-columns:repeat(3,1fr)}
+}
+
+@media(max-width:768px){
+    .container{flex-direction:column;height:auto;min-height:100vh}
+    .sidebar{
+        position:fixed;top:0;left:0;bottom:0;transform:translateX(-100%);
+        width:280px;height:100vh;box-shadow:5px 0 15px rgba(0,0,0,0.5);
+    }
+    .sidebar.open{transform:translateX(0)}
+    .close-sidebar {display:block}
+    .mobile-nav{display:flex}
+    .main{padding:15px;height:auto;overflow:visible}
+    .stats{grid-template-columns:1fr}
+    .controls{flex-direction:column}
+    .search,.btn{width:100%}
+    .grid{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
 
+<div class="mobile-nav">
+    <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+    <div style="font-weight:700;font-size:18px">Weight Manager</div>
+</div>
+
 <div class="container">
-<div class="sidebar">
-<div class="logo">Clients</div>
+<div class="sidebar" id="sidebarNav">
+<div class="logo-container">
+    <div class="logo">Clients</div>
+    <button class="close-sidebar" onclick="toggleSidebar()">✕</button>
+</div>
 <div class="clients" id="clients"></div>
 <button class="sidebar-btn" onclick="addClient()">+ New Client</button>
 </div>
@@ -118,11 +175,17 @@ function saveStorage(){
 localStorage.setItem('clientWeightData',JSON.stringify(data));
 }
 
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebarNav');
+    sidebar.classList.toggle('open');
+}
+
 function calcWeight(){
 const q=parseFloat(quantity.value)||0;
 const w=parseFloat(weight.value)||0;
 const t=parseFloat(tare.value)||0;
-newWeight.value=w-(t*q);
+// Fixed math structure to maintain clean decimals
+newWeight.value=(w-(t*q)).toFixed(2);
 }
 
 function addClient(){
@@ -134,10 +197,12 @@ selectedClient=name;
 saveStorage();
 renderClients();
 renderTable();
+// Auto-close menu on mobile selection
+if(window.innerWidth <= 768) toggleSidebar();
 }
 
 function deleteClient(){
-if(!selectedClient)return;
+if(!selectedClient)return alert('Select a client first');
 if(confirm('Delete client?')){
 delete data[selectedClient];
 selectedClient=Object.keys(data)[0]||null;
@@ -157,6 +222,7 @@ div.onclick=()=>{
 selectedClient=c;
 renderClients();
 renderTable();
+if(window.innerWidth <= 768) toggleSidebar(); // Auto-collapse navigation drawer on mobile
 };
 clients.appendChild(div);
 });
@@ -177,7 +243,10 @@ let filtered=itemsArr.filter(x=>x.code.toLowerCase().includes(searchText));
 
 items.textContent=filtered.length;
 qty.textContent=filtered.reduce((a,b)=>a+Number(b.quantity),0);
-net.textContent=filtered.reduce((a,b)=>a+Number(b.newWeight),0);
+
+// Rounding weights to avoiding strange JS decimal artifacts (e.g. 14.000000002)
+let totalNet = filtered.reduce((a,b)=>a+Number(b.newWeight),0);
+net.textContent=totalNet.toFixed(2);
 
 if(filtered.length===0){
 content.innerHTML='<div class="empty">No items found</div>';
@@ -198,8 +267,10 @@ rows+=`
 <td>${item.tare}</td>
 <td>${item.newWeight}</td>
 <td>
+<div style="display:flex;">
 <button class="action-btn edit" onclick="editItem(${realIndex})">Edit</button>
 <button class="action-btn delete" onclick="deleteItem(${realIndex})">Delete</button>
+</div>
 </td>
 </tr>`;
 });
@@ -257,17 +328,21 @@ newWeight.value='';
 }
 
 function saveItem(){
+const q=Number(quantity.value);
+const w=Number(weight.value);
+const t=Number(tare.value);
+
 const item={
 code:code.value.trim(),
 lotNumber:'',
-quantity:Number(quantity.value),
-weight:Number(weight.value),
-tare:Number(tare.value),
-newWeight:Number(weight.value)-(Number(tare.value)*Number(quantity.value))
+quantity:q,
+weight:w,
+tare:t,
+newWeight:Number((w-(t*q)).toFixed(2))
 };
 
 if(!item.code || isNaN(item.quantity) || isNaN(item.weight) || isNaN(item.tare)){
-alert('Fill all fields');
+alert('Fill all fields with valid numbers');
 return;
 }
 
