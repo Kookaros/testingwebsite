@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Client Weight Manager</title>
+<style>
+:root{
+--bg:#0f1117;
+--panel:#171c24;
+--panel2:#1f2937;
+--border:#2d3748;
+--text:#f8fafc;
+--muted:#94a3b8;
+--blue:#2563eb;
+--green:#10b981;
+--red:#ef4444;
+}
+*{margin:0;padding:0;box-sizing:border-box;font-family:Segoe UI,sans-serif}
+body{background:var(--bg);color:var(--text);height:100vh}
+.container{display:flex;height:100vh}
+.sidebar{width:280px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column}
+.logo{padding:20px;font-size:22px;font-weight:700}
+.clients{flex:1;overflow:auto;padding:10px}
+.client{padding:12px;border-radius:10px;margin-bottom:8px;cursor:pointer}
+.client:hover{background:var(--panel2)}
+.client.active{background:var(--blue)}
+.sidebar-btn,.btn{border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer}
+.sidebar-btn{margin:15px;padding:12px;background:var(--green)}
+.main{flex:1;padding:24px;overflow:auto}
+.header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.title{font-size:30px;font-weight:700}
+.controls{display:flex;gap:10px;flex-wrap:wrap}
+.search,.input{
+background:#111827;color:white;border:1px solid var(--border);
+padding:12px;border-radius:10px
+}
+.search{width:280px}
+.btn{padding:12px 16px}
+.primary{background:var(--blue)}
+.danger{background:var(--red)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin:20px 0}
+.card{background:var(--panel);padding:18px;border:1px solid var(--border);border-radius:14px}
+.card .label{color:var(--muted)}
+.card .value{font-size:28px;font-weight:700;margin-top:8px}
+.table-wrap{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th{background:#111827;padding:14px;text-align:left}
+td{padding:14px;border-top:1px solid var(--border)}
+.lot{color:#64748b;font-style:italic}
+.action-btn{border:none;color:white;padding:8px 10px;border-radius:8px;cursor:pointer}
+.edit{background:var(--blue);margin-right:6px}
+.delete{background:var(--red)}
+.empty{text-align:center;padding:50px;color:var(--muted)}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);justify-content:center;align-items:center}
+.modal-content{width:520px;background:var(--panel);padding:20px;border-radius:16px;border:1px solid var(--border)}
+.modal-content h2{margin-bottom:15px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.full{grid-column:1/-1}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:15px}
+@media(max-width:900px){.stats{grid-template-columns:1fr}.sidebar{width:220px}}
+</style>
+</head>
+<body>
+
+<div class="container">
+<div class="sidebar">
+<div class="logo">Clients</div>
+<div class="clients" id="clients"></div>
+<button class="sidebar-btn" onclick="addClient()">+ New Client</button>
+</div>
+
+<div class="main">
+<div class="header">
+<div class="title" id="title">Select Client</div>
+<div class="controls">
+<input class="search" id="search" placeholder="Search code..." oninput="renderTable()">
+<button class="btn primary" onclick="openModal()">+ Add Item</button>
+<button class="btn danger" onclick="deleteClient()">Delete Client</button>
+</div>
+</div>
+
+<div class="stats">
+<div class="card"><div class="label">Total Items</div><div class="value" id="items">0</div></div>
+<div class="card"><div class="label">Total Quantity</div><div class="value" id="qty">0</div></div>
+<div class="card"><div class="label">Total Net Weight</div><div class="value" id="net">0</div></div>
+</div>
+
+<div id="content"></div>
+</div>
+</div>
+
+<div class="modal" id="modal">
+<div class="modal-content">
+<h2 id="modalTitle">Add Item</h2>
+
+<div class="grid">
+<input id="code" class="input full" placeholder="Code">
+<input id="quantity" class="input" type="number" placeholder="Quantity" oninput="calcWeight()">
+<input id="weight" class="input" type="number" placeholder="Weight" oninput="calcWeight()">
+<input id="tare" class="input" type="number" placeholder="Tare" oninput="calcWeight()">
+<input id="newWeight" class="input full" placeholder="Net Weight" readonly>
+</div>
+
+<div class="modal-actions">
+<button class="btn" style="background:#4b5563" onclick="closeModal()">Cancel</button>
+<button class="btn primary" id="saveBtn" onclick="saveItem()">Add</button>
+</div>
+</div>
+</div>
+
+<script>
+let data=JSON.parse(localStorage.getItem('clientWeightData'))||{};
+let selectedClient=null;
+let editingIndex=null;
+
+function saveStorage(){
+localStorage.setItem('clientWeightData',JSON.stringify(data));
+}
+
+function calcWeight(){
+const q=parseFloat(quantity.value)||0;
+const w=parseFloat(weight.value)||0;
+const t=parseFloat(tare.value)||0;
+newWeight.value=w-(t*q);
+}
+
+function addClient(){
+const name=prompt('Client name:');
+if(!name)return;
+if(data[name]) return alert('Client already exists');
+data[name]=[];
+selectedClient=name;
+saveStorage();
+renderClients();
+renderTable();
+}
+
+function deleteClient(){
+if(!selectedClient)return;
+if(confirm('Delete client?')){
+delete data[selectedClient];
+selectedClient=Object.keys(data)[0]||null;
+saveStorage();
+renderClients();
+renderTable();
+}
+}
+
+function renderClients(){
+clients.innerHTML='';
+Object.keys(data).forEach(c=>{
+const div=document.createElement('div');
+div.className='client'+(c===selectedClient?' active':'');
+div.textContent=c;
+div.onclick=()=>{
+selectedClient=c;
+renderClients();
+renderTable();
+};
+clients.appendChild(div);
+});
+}
+
+function renderTable(){
+title.textContent=selectedClient||'Select Client';
+
+if(!selectedClient){
+content.innerHTML='<div class="empty">No client selected</div>';
+return;
+}
+
+let itemsArr=data[selectedClient];
+let searchText=search.value.toLowerCase();
+
+let filtered=itemsArr.filter(x=>x.code.toLowerCase().includes(searchText));
+
+items.textContent=filtered.length;
+qty.textContent=filtered.reduce((a,b)=>a+Number(b.quantity),0);
+net.textContent=filtered.reduce((a,b)=>a+Number(b.newWeight),0);
+
+if(filtered.length===0){
+content.innerHTML='<div class="empty">No items found</div>';
+return;
+}
+
+let rows='';
+
+filtered.forEach(item=>{
+let realIndex=itemsArr.indexOf(item);
+
+rows+=`
+<tr>
+<td>${item.code}</td>
+<td class="lot"></td>
+<td>${item.quantity}</td>
+<td>${item.weight}</td>
+<td>${item.tare}</td>
+<td>${item.newWeight}</td>
+<td>
+<button class="action-btn edit" onclick="editItem(${realIndex})">Edit</button>
+<button class="action-btn delete" onclick="deleteItem(${realIndex})">Delete</button>
+</td>
+</tr>`;
+});
+
+content.innerHTML=`
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Lot Number</th>
+<th>Quantity</th>
+<th>Weight</th>
+<th>Tare</th>
+<th>Net Weight</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>${rows}</tbody>
+</table>
+</div>`;
+}
+
+function openModal(){
+if(!selectedClient) return alert('Select a client first');
+editingIndex=null;
+modalTitle.textContent='Add Item';
+saveBtn.textContent='Add';
+modal.style.display='flex';
+}
+
+function editItem(index){
+const item=data[selectedClient][index];
+editingIndex=index;
+
+code.value=item.code;
+quantity.value=item.quantity;
+weight.value=item.weight;
+tare.value=item.tare;
+newWeight.value=item.newWeight;
+
+modalTitle.textContent='Edit Item';
+saveBtn.textContent='Save';
+modal.style.display='flex';
+}
+
+function closeModal(){
+modal.style.display='none';
+editingIndex=null;
+code.value='';
+quantity.value='';
+weight.value='';
+tare.value='';
+newWeight.value='';
+}
+
+function saveItem(){
+const item={
+code:code.value.trim(),
+lotNumber:'',
+quantity:Number(quantity.value),
+weight:Number(weight.value),
+tare:Number(tare.value),
+newWeight:Number(weight.value)-(Number(tare.value)*Number(quantity.value))
+};
+
+if(!item.code || isNaN(item.quantity) || isNaN(item.weight) || isNaN(item.tare)){
+alert('Fill all fields');
+return;
+}
+
+if(editingIndex!==null){
+data[selectedClient][editingIndex]=item;
+}else{
+data[selectedClient].push(item);
+}
+
+saveStorage();
+closeModal();
+renderTable();
+}
+
+function deleteItem(index){
+if(confirm('Delete item?')){
+data[selectedClient].splice(index,1);
+saveStorage();
+renderTable();
+}
+}
+
+renderClients();
+renderTable();
+</script>
+</body>
+</html>
