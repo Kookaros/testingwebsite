@@ -195,7 +195,7 @@ td{padding:14px;border-top:1px solid var(--border);font-size:15px}
             </div>
             <div class="user-badge" id="currentUserBadge">Χρήστης: -</div>
             <div class="clients" id="clients"></div>
-            <button class="sidebar-btn" onclick="addClient()">+ Νέος Πελάτης</button>
+            <button class="sidebar-btn" onclick="openAddClientModal()">+ Νέος Πελάτης</button>
         </div>
         
         <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
@@ -246,6 +246,32 @@ td{padding:14px;border-top:1px solid var(--border);font-size:15px}
 </div>
 </div>
 
+<div class="modal" id="addClientModal">
+<div class="modal-content">
+<h2>Προσθήκη Νέου Πελάτη</h2>
+<div class="grid">
+<input id="newClientNameInp" class="input full" placeholder="Όνομα Πελάτη" style="text-transform: uppercase;" enterkeyhint="done">
+</div>
+<div class="modal-actions">
+<button class="btn" style="background:#4b5563" onclick="closeAddClientModal()">Ακύρωση</button>
+<button class="btn primary" onclick="submitAddClient()">Δημιουργία</button>
+</div>
+</div>
+</div>
+
+<div class="modal" id="renameClientModal">
+<div class="modal-content">
+<h2>Μετονομασία Πελάτη</h2>
+<div class="grid">
+<input id="renameClientNameInp" class="input full" placeholder="Νέο Όνομα Πελάτη" style="text-transform: uppercase;" enterkeyhint="done">
+</div>
+<div class="modal-actions">
+<button class="btn" style="background:#4b5563" onclick="closeRenameClientModal()">Ακύρωση</button>
+<button class="btn primary" onclick="submitRenameClient()">Αποθήκευση</button>
+</div>
+</div>
+</div>
+
 <div class="modal" id="exportModal">
 <div class="modal-content">
 <h2>Εξαγωγή Δεδομένων</h2>
@@ -292,11 +318,16 @@ const db = getDatabase(app);
 let data = {};
 let selectedClient = null;
 let editingIndex = null;
+let targetRenameOldName = null; // Κρατάει τον πελάτη προς μετονομασία
 
 // Bind global functions
 window.handleLogin = handleLogin;
-window.addClient = addClient;
-window.renameClient = renameClient;
+window.openAddClientModal = openAddClientModal;
+window.closeAddClientModal = closeAddClientModal;
+window.submitAddClient = submitAddClient;
+window.openRenameClientModal = openRenameClientModal;
+window.closeRenameClientModal = closeRenameClientModal;
+window.submitRenameClient = submitRenameClient;
 window.deleteClient = deleteClient;
 window.openModal = openModal;
 window.closeModal = closeModal;
@@ -374,30 +405,51 @@ function calcWeight(){
     document.getElementById('newWeight').value = (w - (t * q)).toFixed(2);
 }
 
-function addClient(){
-    const name = prompt('Όνομα πελάτη:');
-    if (!name) return;
-    const trimmedName = name.trim();
+/* Modals Πελατών με Real-time μετατροπή */
+function openAddClientModal() {
+    document.getElementById('newClientNameInp').value = '';
+    document.getElementById('addClientModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('newClientNameInp').focus(), 100);
+}
+function closeAddClientModal() {
+    document.getElementById('addClientModal').style.display = 'none';
+}
+function submitAddClient() {
+    const rawName = document.getElementById('newClientNameInp').value.trim();
+    if (!rawName) return;
+    const trimmedName = convertToGreekUppercase(rawName);
     if (data[trimmedName]) return alert('Ο πελάτης υπάρχει ήδη');
     
     const uniqueId = Math.floor(10000 + Math.random() * 90000).toString();
     set(ref(db, 'clientsData/' + trimmedName), { id: uniqueId, created: true, items: [] }).then(() => {
         selectedClient = trimmedName;
+        closeAddClientModal();
     });
 }
 
-function renameClient(oldName, event) {
+function openRenameClientModal(oldName, event) {
     if (event) event.stopPropagation();
-    const newName = prompt(`Μετονομασία πελάτη "${oldName}" σε:`, oldName);
-    if (!newName || newName.trim() === "") return;
-    const cleanName = newName.trim();
-    if (cleanName === oldName) return;
+    targetRenameOldName = oldName;
+    document.getElementById('renameClientNameInp').value = oldName;
+    document.getElementById('renameClientModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('renameClientNameInp').focus(), 100);
+}
+function closeRenameClientModal() {
+    document.getElementById('renameClientModal').style.display = 'none';
+    targetRenameOldName = null;
+}
+function submitRenameClient() {
+    const rawName = document.getElementById('renameClientNameInp').value.trim();
+    if (!rawName || !targetRenameOldName) return;
+    const cleanName = convertToGreekUppercase(rawName);
+    if (cleanName === targetRenameOldName) { closeRenameClientModal(); return; }
     if (data[cleanName]) return alert('Υπάρχει ήδη πελάτης με αυτό το όνομα');
     
-    let currentClientObj = data[oldName];
+    let currentClientObj = data[targetRenameOldName];
     set(ref(db, 'clientsData/' + cleanName), currentClientObj).then(() => {
-        remove(ref(db, 'clientsData/' + oldName)).then(() => {
-            if (selectedClient === oldName) selectedClient = cleanName;
+        remove(ref(db, 'clientsData/' + targetRenameOldName)).then(() => {
+            if (selectedClient === targetRenameOldName) selectedClient = cleanName;
+            closeRenameClientModal();
         });
     });
 }
@@ -421,7 +473,7 @@ function renderClients(){
                 <span class="client-name">${c}</span>
                 <span class="client-id-badge">ID: ${cid}</span>
             </div>
-            <button class="rename-btn" onclick="renameClient('${c}', event)">Μετονομασία</button>
+            <button class="rename-btn" onclick="openRenameClientModal('${c}', event)">Μετονομασία</button>
         `;
         div.onclick = () => {
             selectedClient = c;
@@ -522,10 +574,11 @@ function generateExcelData() {
     let totalQty = itemsArr.reduce((a, b) => a + Number(b.quantity), 0);
     let totalNet = itemsArr.reduce((a, b) => a + Number(b.newWeight), 0);
 
-    worksheetRows.push({});
-    worksheetRows.push({ "ΣΥΝΟΛΙΚΑ ΣΤΟΙΧΕΙΑ": "Σύνολο Προϊόντων:", "Περιγραφή ": totalItems });
-    worksheetRows.push({ "ΣΥΝΟΛΙΚΑ ΣΤΟΙΧΕΙΑ": "Συνολική Ποσότητα:", "Περιγραφή ": totalQty });
-    worksheetRows.push({ "ΣΥΝΟΛΙΚΑ ΣΤΟΙΧΕΙΑ": "Συνολικό Καθαρό Βάρος:", "Περιγραφή ": Number(totalNet.toFixed(2)) });
+    // worksheetRows.push({});
+    // worksheetRows.push({ "Κωδικός (Code)": "ΣΥΝΟΛΙΚΑ ΣΤΟΙΧΕΙΑ (SUMMARY)" });
+    // worksheetRows.push({ "Κωδικός (Code)": "Σύνολο Προϊόντων:", "Περιγραφή (Description)": totalItems });
+    // worksheetRows.push({ "Κωδικός (Code)": "Συνολική Ποσότητα:", "Περιγραφή (Description)": totalQty });
+    // worksheetRows.push({ "Κωδικός (Code)": "Συνολικό Καθαρό Βάρος:", "Περιγραφή (Description)": Number(totalNet.toFixed(2)) });
     return worksheetRows;
 }
 
@@ -584,12 +637,11 @@ async function sendBrevoEmail() {
         sender: { name: "Weight Manager App", email: "kookydynamo@gmail.com" },
         to: [{ email: recipient }],
         subject: `${selectedClient} | ${clientId} | ${formattedDate}`,
-        htmlContent: `<p>Παρακαλώ βρείτε συνημμένο ζυγολόγιο σε αρχείο Excel (περιλαμβάνει σχόλια).</p>`,
+        htmlContent: `<p>Παρακαλώ βρείτε συνημμένο ζυγολόγιο σε αρχείο Excel</p>`,
         attachment: [{ content: wbout, name: `${selectedClient}.xlsx` }]
     };
 
     try {
-        // Καθαρό endpoint της Brevo για αποφυγή CORS / Failed to fetch σφαλμάτων
         const response = await fetch('https://api.brevo.com/v3/smtp/email', {
             method: 'POST',
             headers: { 'accept': 'application/json', 'api-key': apiKey, 'content-type': 'application/json' },
@@ -684,13 +736,21 @@ function deleteItem(index){
     }
 }
 
-// ⌨ Keyboard navigation & auto-translation listeners
+// ⌨ Real-time Listeners για μετατροπή σε Ελληνικά & Κεφαλαία
 const codeInp = document.getElementById('code');
 codeInp.addEventListener('input', function() { this.value = convertToGreekUppercase(this.value); });
 
 const commentInp = document.getElementById('comment');
 commentInp.addEventListener('input', function() { this.value = convertToGreekUppercase(this.value); });
 
+const newClientInp = document.getElementById('newClientNameInp');
+newClientInp.addEventListener('input', function() { this.value = convertToGreekUppercase(this.value); });
+
+const renameClientInp = document.getElementById('renameClientNameInp');
+renameClientInp.addEventListener('input', function() { this.value = convertToGreekUppercase(this.value); });
+
+
+// Keyboard Navigation για όλα τα Modals
 const modalInputs = [
     codeInp, 
     document.getElementById('quantity'), 
@@ -706,6 +766,14 @@ modalInputs.forEach((input, index) => {
             if (index < modalInputs.length - 1) modalInputs[index + 1].focus(); else saveItem();
         }
     });
+});
+
+newClientInp.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); submitAddClient(); }
+});
+
+renameClientInp.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); submitRenameClient(); }
 });
 
 document.getElementById('loginPassword').addEventListener('keydown', function(e) {
