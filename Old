@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ζυγολόγιο</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+--bg:#0f1117;
+--panel:#171c24;
+--panel2:#1f2937;
+--border:#2d3748;
+--text:#f8fafc;
+--muted:#94a3b8;
+--blue:#2563eb;
+--green:#10b981;
+--red:#ef4444;
+--orange:#f97316;
+--purple:#8b5cf6;
+--teal:#0d9488;
+}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif}
+body{background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* 🔐 LOGIN SCREEN STYLE */
+.login-container {
+    position: fixed; inset: 0; background: var(--bg); z-index: 2000;
+    display: flex; justify-content: center; align-items: center; padding: 20px;
+}
+.login-card {
+    background: var(--panel); border: 1px solid var(--border); padding: 32px;
+    border-radius: 16px; width: 100%; max-width: 400px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3);
+}
+.login-card h1 { font-size: 24px; margin-bottom: 8px; text-align: center; font-weight: 700; }
+.login-card p { color: var(--muted); text-align: center; font-size: 14px; margin-bottom: 24px; }
+.login-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.login-group label { font-size: 14px; color: var(--muted); font-weight: 600; }
+.login-input { background: #111827; color: white; border: 1px solid var(--border); padding: 12px; border-radius: 10px; outline: none; font-size: 15px; }
+.login-input:focus { border-color: var(--blue); }
+.login-btn { width: 100%; border: none; border-radius: 10px; color: white; font-weight: 700; padding: 14px; background: var(--blue); font-size: 16px; cursor: pointer; margin-top: 10px; transition: all 0.2s; }
+.login-btn:hover { filter: brightness(1.1); }
+.login-error { color: var(--red); font-size: 14px; text-align: center; margin-top: 12px; display: none; font-weight: 600; }
+
+/* MAIN APP INTERFACE */
+.app-hidden { display: none !important; }
+.container{display:flex;height:100vh;position:relative;overflow:hidden}
+
+/* Sidebar */
+.sidebar{
+width:280px;background:var(--panel);border-right:1px solid var(--border);
+display:flex;flex-direction:column;transition:transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+z-index:150;
+}
+.logo-container {display:flex;justify-content:space-between;align-items:center;padding:20px;}
+.logo{font-size:22px;font-weight:700}
+.user-badge { font-size: 12px; background: var(--panel2); padding: 4px 8px; border-radius: 6px; color: var(--muted); border: 1px solid var(--border); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0 15px 10px 15px; text-align: center;}
+.close-sidebar {display:none;background:none;border:none;color:var(--text);font-size:24px;cursor:pointer;}
+.clients{flex:1;overflow-y:auto;padding:10px}
+
+.client{
+display:flex;align-items:center;justify-content:space-between;
+padding:12px;border-radius:10px;margin-bottom:8px;cursor:pointer;
+gap:8px;background:rgba(255,255,255,0.02);
+}
+.client:hover{background:var(--panel2)}
+.client.active{background:var(--blue)}
+.client-info-wrapper {display:flex;flex-direction:column;flex:1;word-break:break-all;padding-right:4px;}
+.client-name {font-weight:600;font-size:15px;}
+.client-id-badge {
+font-size:11px;background:var(--panel2);color:var(--green);padding:2px 6px;
+border-radius:6px;font-weight:700;width:fit-content;margin-top:4px;border:1px solid var(--border);
+}
+.client.active .client-id-badge {background:rgba(255,255,255,0.15);color:#fff;border-color:transparent;}
+.rename-btn {
+background:var(--panel2);border:none;color:var(--muted);padding:6px 10px;
+border-radius:6px;font-size:12px;cursor:pointer;font-weight:600;transition:all 0.2s;align-self:center;
+}
+.client.active .rename-btn {background:rgba(255,255,255,0.2);color:white;}
+.rename-btn:hover {background:var(--orange) !important;color:white !important;}
+
+.sidebar-btn,.btn{border:none;border-radius:10px;color:white;font-weight:700;cursor:pointer;transition:all 0.2s}
+.sidebar-btn{margin:15px;padding:14px;background:var(--green);font-size:15px}
+.sidebar-btn:hover{filter:brightness(1.1)}
+
+/* Main Content */
+.main{flex:1;padding:24px;overflow-y:auto;display:flex;flex-direction:column;gap:20px}
+.mobile-nav {
+display:none;align-items:center;gap:15px;background:var(--panel);
+padding:14px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:120;
+}
+.menu-btn {background:none;border:none;color:var(--text);font-size:24px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;}
+
+.header{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}
+.title-area{display:flex;align-items:center;gap:15px;flex-wrap:wrap}
+.title{font-size:30px;font-weight:700;word-break:break-all}
+.controls{display:flex;gap:10px;flex-wrap:wrap;width:100%}
+
+.search-wrapper {display:flex;gap:10px;flex:2;min-width:260px;}
+.search,.input{background:#111827;color:white;border:1px solid var(--border);padding:12px;border-radius:10px;outline:none;font-size:15px;}
+.search{flex:1;width:100%}
+.btn{padding:12px 18px;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;font-size:15px}
+.btn:hover{filter:brightness(1.1)}
+.primary{background:var(--blue);flex:1;min-width:160px}
+.danger{background:var(--red)}
+.secondary{background:#4b5563}
+.purple-btn{background:var(--purple)}
+.teal-btn{background:var(--teal)}
+
+/* Stats Cards */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;width:100%}
+.card{background:var(--panel);padding:18px;border:1px solid var(--border);border-radius:14px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1)}
+.card .label{color:var(--muted)}
+.card .value{font-size:28px;font-weight:700;margin-top:8px;word-break:break-all}
+
+/* Table */
+.table-wrap{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow-x:auto;width:100%}
+table{width:100%;border-collapse:collapse;min-width:1000px}
+th{background:#111827;padding:14px;text-align:left}
+td{padding:14px;border-top:1px solid var(--border);font-size:15px}
+.empty-col{color:#64748b;font-style:italic}
+.action-btn{border:none;color:white;padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px}
+.edit{background:var(--blue);margin-right:6px}
+.delete{background:var(--red)}
+.empty{text-align:center;padding:50px;color:var(--muted);font-size:16px}
+
+/* Modals */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);justify-content:center;align-items:center;padding:15px;z-index:250}
+.modal-content{width:100%;max-width:520px;background:var(--panel);padding:24px;border-radius:16px;border:1px solid var(--border);max-height:90vh;overflow-y:auto}
+.modal-content h2{margin-bottom:20px;font-size:22px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.full{grid-column:1/-1}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:24px}
+
+.sidebar-overlay {display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:140;}
+
+@media (max-width: 900px) {
+    .stats { grid-template-columns: 1fr; }
+    .sidebar { width: 220px; }
+}
+@media (max-width: 768px) {
+    .mobile-nav { display:flex; }
+    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 300px; transform: translateX(-100%); box-shadow: 5px 0 25px rgba(0,0,0,0.5); }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar.open + .sidebar-overlay { display: block; }
+    .close-sidebar { display: block; }
+    .main { padding: 16px; gap: 16px; }
+    .title { font-size: 24px; }
+    .controls { flex-direction: column; }
+    .search-wrapper { width: 100%; }
+    .primary { order: -1; width: 100%; }
+    .danger { width: 100%; }
+}
+@media (max-width: 480px) {
+    .grid { grid-template-columns: 1fr; }
+    .modal-content { padding: 16px; }
+    .modal-actions { flex-direction: column; }
+    .modal-actions .btn { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<div class="login-container" id="loginScreen">
+    <div class="login-card">
+        <h1>Σύνδεση Χρήστη</h1>
+        <p>Παρακαλώ εισάγετε τα στοιχεία σας για να αποκτήσετε πρόσβαση στο κοινό ζυγολόγιο.</p>
+        
+        <div class="login-group">
+            <label for="loginUsername">Όνομα Χρήστη</label>
+            <input type="text" id="loginUsername" class="login-input" placeholder="Όνομα Χρήστη">
+        </div>
+        
+        <div class="login-group">
+            <label for="loginPassword">Κωδικός Πρόσβασης</label>
+            <input type="password" id="loginPassword" class="login-input" placeholder="••••••••">
+        </div>
+        
+        <button class="login-btn" onclick="handleLogin()">Είσοδος</button>
+        <div class="login-error" id="loginError">Λάθος όνομα χρήστη ή κωδικός!</div>
+    </div>
+</div>
+
+<div id="mainApp" class="app-hidden">
+    <div class="mobile-nav">
+        <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+        <div style="font-weight:700;font-size:18px">Ζυγολόγιο</div>
+    </div>
+
+    <div class="container">
+        <div class="sidebar" id="sidebarNav">
+            <div class="logo-container">
+                <div class="logo">Πελάτες</div>
+                <button class="close-sidebar" onclick="toggleSidebar()">✕</button>
+            </div>
+            <div class="user-badge" id="currentUserBadge">Χρήστης: -</div>
+            <div class="clients" id="clients"></div>
+            <button class="sidebar-btn" onclick="openAddClientModal()">+ Νέος Πελάτης</button>
+        </div>
+        
+        <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+        <div class="main">
+            <div class="header">
+                <div class="title-area">
+                    <div class="title" id="title">Επιλέξτε Πελάτη</div>
+                    <button class="btn purple-btn" id="exportMainBtn" style="display:none; padding:8px 14px; font-size:14px;" onclick="openExportModal()">Εξαγωγή</button>
+                </div>
+                <div class="controls">
+                    <div class="search-wrapper">
+                        <button class="btn secondary" onclick="clearSearch()">Καθαρισμός</button>
+                        <input class="search" id="search" placeholder="Αναζήτηση κωδικού..." oninput="renderTable()">
+                    </div>
+                    <button class="btn primary" onclick="openModal()">+ Προσθήκη Είδους</button>
+                    <button class="btn danger" onclick="deleteClient()">Διαγραφή Πελάτη</button>
+                </div>
+            </div>
+
+            <div class="stats">
+                <div class="card"><div class="label">Συνολικά Είδη</div><div class="value" id="items">0</div></div>
+                <div class="card"><div class="label">Συνολική Ποσότητα</div><div class="value" id="qty">0</div></div>
+                <div class="card"><div class="label">Συνολικό Καθαρό Βάρος</div><div class="value" id="net">0</div></div>
+            </div>
+
+            <div id="content"></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="modal">
+<div class="modal-content">
+<h2 id="modalTitle">Προσθήκη Είδους</h2>
+<div class="grid">
+<input id="code" class="input full" placeholder="Κωδικός" style="text-transform: uppercase;" enterkeyhint="next">
+<input id="quantity" class="input" type="number" placeholder="Ποσότητα" oninput="calcWeight()" enterkeyhint="next">
+<input id="weight" class="input" type="number" placeholder="Μικτό Βάρος" oninput="calcWeight()" enterkeyhint="next">
+<input id="tare" class="input" type="number" placeholder="Απόβαρο" oninput="calcWeight()" enterkeyhint="next">
+<input id="newWeight" class="input full" placeholder="Καθαρό Βάρος" readonly>
+<input id="price" class="input full" type="number" step="0.01" placeholder="Τιμή" enterkeyhint="next">
+<input id="comment" class="input full" placeholder="Σχόλιο" style="text-transform: uppercase;" enterkeyhint="done">
+</div>
+<div class="modal-actions">
+<button class="btn" style="background:#4b5563" onclick="closeModal()">Ακύρωση</button>
+<button class="btn primary" id="saveBtn" onclick="saveItem()">Προσθήκη</button>
+</div>
+</div>
+</div>
+
+<div class="modal" id="addClientModal">
+<div class="modal-content">
+<h2>Προσθήκη Νέου Πελάτη</h2>
+<div class="grid">
+<input id="newClientNameInp" class="input full" placeholder="Όνομα Πελάτη" style="text-transform: uppercase;" enterkeyhint="done">
+</div>
+<div class="modal-actions">
+<button class="btn" style="background:#4b5563" onclick="closeAddClientModal()">Ακύρωση</button>
+<button class="btn primary" onclick="submitAddClient()">Δημιουργία</button>
+</div>
+</div>
+</div>
+
+<div class="modal" id="renameClientModal">
+<div class="modal-content">
+<h2>Μετονομασία Πελάτη</h2>
+<div class="grid">
+<input id="renameClientNameInp" class="input full" placeholder="Νέο Όνομα Πελάτη" style="text-transform: uppercase;" enterkeyhint="done">
+</div>
+<div class="modal-actions">
+<button class="btn" style="background:#4b5563" onclick="closeRenameClientModal()">Ακύρωση</button>
+<button class="btn primary" onclick="submitRenameClient()">Αποθήκευση</button>
+</div>
+</div>
+</div>
+
+<div class="modal" id="exportModal">
+<div class="modal-content">
+<h2>Εξαγωγή Δεδομένων</h2>
+<p style="color:var(--muted); margin-bottom:20px; font-size:14px;">Επιλέξτε αν θέλετε να αντιγράψετε μόνο τα δεδομένα των ειδών, να κάνετε απευθείας λήψη της αναφοράς σε Excel ή να την στείλετε αυτόματα μέσω email.</p>
+<div style="display:flex; flex-direction:column; gap:12px;">
+    <button class="btn teal-btn" id="copyClipboardBtn" onclick="copyToClipboard()">📋 Αντιγραφή Δεδομένων Ειδών Μόνο</button>
+    <button class="btn primary" onclick="downloadExcel()">⬇ Λήψη Αρχείου Excel (.xlsx)</button>
+    <button class="btn purple-btn" id="emailSendBtn" onclick="sendBrevoEmail()">✉ Αποστολή Αναφοράς μέσω Email</button>
+</div>
+<div class="modal-actions">
+<button class="btn" style="background:#4b5563" onclick="closeExportModal()">Κλείσιμο</button>
+</div>
+</div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+const CONFIG = {
+    brevoApiKey: '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',
+    recipientEmail: 'pappaszugologio@gmail.com',
+    users: {
+        "aggelos": "aggelos123",
+        "aris": "aris123",
+        "basilhs": "basilhs123"
+    }
+};
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCkN4wHaBRW49iG-AaD1Bw4foXGdnKfAxY",
+  authDomain: "zygologio.firebaseapp.com",
+  databaseURL: "https://zygologio-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "zygologio",
+  storageBucket: "zygologio.firebasestorage.app",
+  messagingSenderId: "701326485839",
+  appId: "1:701326485839:web:afd5242b068c3c33c27d3a",
+  measurementId: "G-E6W0QFQE7F"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+let data = {};
+let selectedClient = null;
+let editingIndex = null;
+let targetRenameOldName = null; // Κρατάει τον πελάτη προς μετονομασία
+
+// Bind global functions
+window.handleLogin = handleLogin;
+window.openAddClientModal = openAddClientModal;
+window.closeAddClientModal = closeAddClientModal;
+window.submitAddClient = submitAddClient;
+window.openRenameClientModal = openRenameClientModal;
+window.closeRenameClientModal = closeRenameClientModal;
+window.submitRenameClient = submitRenameClient;
+window.deleteClient = deleteClient;
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.saveItem = saveItem;
+window.editItem = editItem;
+window.deleteItem = deleteItem;
+window.calcWeight = calcWeight;
+window.renderTable = renderTable;
+window.clearSearch = clearSearch;
+window.toggleSidebar = toggleSidebar;
+window.openExportModal = openExportModal;
+window.closeExportModal = closeExportModal;
+window.copyToClipboard = copyToClipboard;
+window.downloadExcel = downloadExcel;
+window.sendBrevoEmail = sendBrevoEmail;
+
+function handleLogin() {
+    const userInp = document.getElementById('loginUsername').value.trim();
+    const passInp = document.getElementById('loginPassword').value.trim();
+    const errorDiv = document.getElementById('loginError');
+
+    if (CONFIG.users[userInp] && CONFIG.users[userInp] === passInp) {
+        sessionStorage.setItem('isLoggedZygologio', 'true');
+        sessionStorage.setItem('usernameZygologio', userInp);
+        initApp();
+    } else {
+        errorDiv.style.display = 'block';
+    }
+}
+
+function checkExistingSession() {
+    if (sessionStorage.getItem('isLoggedZygologio') === 'true') {
+        initApp();
+    }
+}
+
+function initApp() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('mainApp').classList.remove('app-hidden');
+    document.getElementById('currentUserBadge').textContent = "Χρήστης: " + sessionStorage.getItem('usernameZygologio');
+    
+    onValue(ref(db, 'clientsData'), (snapshot) => {
+        data = snapshot.val() || {};
+        if (selectedClient && !data[selectedClient]) {
+            selectedClient = Object.keys(data)[0] || null;
+        }
+        renderClients();
+        renderTable();
+    });
+}
+
+function convertToGreekUppercase(str) {
+    const map = {
+        'A': 'Α', 'B': 'Β', 'C': 'Ψ', 'D': 'Δ', 'E': 'Ε', 'F': 'Φ', 'G': 'Γ', 'H': 'Η',
+        'I': 'Ι', 'J': 'Ξ', 'K': 'Κ', 'L': 'Λ', 'M': 'Μ', 'N': 'Ν', 'O': 'Ο', 'P': 'Π',
+        'Q': '::', 'R': 'Ρ', 'S': 'Σ', 'T': 'Τ', 'U': 'Θ', 'V': 'Ω', 'W': 'Σ', 'X': 'Χ',
+        'Y': 'Υ', 'Z': 'Ζ'
+    };
+    return str.toUpperCase().split('').map(char => map[char] || char).join('');
+}
+
+function toggleSidebar() {
+    document.getElementById('sidebarNav').classList.toggle('open');
+}
+
+function clearSearch() {
+    document.getElementById('search').value = '';
+    renderTable();
+}
+
+function calcWeight(){
+    const q = parseFloat(document.getElementById('quantity').value) || 0;
+    const w = parseFloat(document.getElementById('weight').value) || 0;
+    const t = parseFloat(document.getElementById('tare').value) || 0;
+    document.getElementById('newWeight').value = (w - (t * q)).toFixed(2);
+}
+
+/* Modals Πελατών με Real-time μετατροπή */
+function openAddClientModal() {
+    document.getElementById('newClientNameInp').value = '';
+    document.getElementById('addClientModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('newClientNameInp').focus(), 100);
+}
+function closeAddClientModal() {
+    document.getElementById('addClientModal').style.display = 'none';
+}
+function submitAddClient() {
+    const rawName = document.getElementById('newClientNameInp').value.trim();
+    if (!rawName) return;
+    const trimmedName = convertToGreekUppercase(rawName);
+    if (data[trimmedName]) return alert('Ο πελάτης υπάρχει ήδη');
+    
+    const uniqueId = Math.floor(10000 + Math.random() * 90000).toString();
+    set(ref(db, 'clientsData/' + trimmedName), { id: uniqueId, created: true, items: [] }).then(() => {
+        selectedClient = trimmedName;
+        closeAddClientModal();
+    });
+}
+
+function openRenameClientModal(oldName, event) {
+    if (event) event.stopPropagation();
+    targetRenameOldName = oldName;
+    document.getElementById('renameClientNameInp').value = oldName;
+    document.getElementById('renameClientModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('renameClientNameInp').focus(), 100);
+}
+function closeRenameClientModal() {
+    document.getElementById('renameClientModal').style.display = 'none';
+    targetRenameOldName = null;
+}
+function submitRenameClient() {
+    const rawName = document.getElementById('renameClientNameInp').value.trim();
+    if (!rawName || !targetRenameOldName) return;
+    const cleanName = convertToGreekUppercase(rawName);
+    if (cleanName === targetRenameOldName) { closeRenameClientModal(); return; }
+    if (data[cleanName]) return alert('Υπάρχει ήδη πελάτης με αυτό το όνομα');
+    
+    let currentClientObj = data[targetRenameOldName];
+    set(ref(db, 'clientsData/' + cleanName), currentClientObj).then(() => {
+        remove(ref(db, 'clientsData/' + targetRenameOldName)).then(() => {
+            if (selectedClient === targetRenameOldName) selectedClient = cleanName;
+            closeRenameClientModal();
+        });
+    });
+}
+
+function deleteClient(){
+    if (!selectedClient) return alert('Επιλέξτε πρώτα έναν πελάτη');
+    if (confirm(`Διαγραφή πελάτη "${selectedClient}";`)) {
+        remove(ref(db, 'clientsData/' + selectedClient));
+    }
+}
+
+function renderClients(){
+    const clientsDiv = document.getElementById('clients');
+    clientsDiv.innerHTML = '';
+    Object.keys(data).forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'client' + (c === selectedClient ? ' active' : '');
+        const cid = data[c].id || '-----';
+        div.innerHTML = `
+            <div class="client-info-wrapper">
+                <span class="client-name">${c}</span>
+                <span class="client-id-badge">ID: ${cid}</span>
+            </div>
+            <button class="rename-btn" onclick="openRenameClientModal('${c}', event)">Μετονομασία</button>
+        `;
+        div.onclick = () => {
+            selectedClient = c;
+            renderClients();
+            renderTable();
+            if (window.innerWidth <= 768) toggleSidebar();
+        };
+        clientsDiv.appendChild(div);
+    });
+}
+
+function getFilteredItems() {
+    if (!selectedClient) return [];
+    let itemsArr = [];
+    if (data[selectedClient] && data[selectedClient].items) {
+        itemsArr = Object.values(data[selectedClient].items);
+    }
+    let searchText = document.getElementById('search').value.toLowerCase();
+    return itemsArr.filter(x => x.code.toLowerCase().includes(searchText));
+}
+
+function renderTable(){
+    document.getElementById('title').textContent = selectedClient || 'Επιλέξτε Πελάτη';
+    const exportBtn = document.getElementById('exportMainBtn');
+
+    if (!selectedClient) {
+        document.getElementById('content').innerHTML = '<div class="empty">Δεν έχει επιλεγεί πελάτης</div>';
+        exportBtn.style.display = 'none';
+        return;
+    }
+    exportBtn.style.display = 'inline-block';
+
+    let filtered = getFilteredItems();
+    let itemsArr = [];
+    if (data[selectedClient] && data[selectedClient].items) {
+        itemsArr = Object.values(data[selectedClient].items);
+    }
+
+    document.getElementById('items').textContent = filtered.length;
+    document.getElementById('qty').textContent = filtered.reduce((a, b) => a + Number(b.quantity), 0);
+    document.getElementById('net').textContent = filtered.reduce((a, b) => a + Number(b.newWeight), 0).toFixed(2);
+
+    if (filtered.length === 0) {
+        document.getElementById('content').innerHTML = '<div class="empty">Δεν βρέθηκαν είδη</div>';
+        return;
+    }
+
+    let rows = '';
+    filtered.forEach(item => {
+        let realIndex = itemsArr.indexOf(item);
+        let displayPrice = item.price !== undefined ? Number(item.price).toFixed(2) : '0.00';
+        let displayComment = item.comment !== undefined ? item.comment : '';
+        
+        rows += `
+        <tr>
+        <td>${item.code}</td>
+        <td class="empty-col"></td>
+        <td class="empty-col"></td>
+        <td>${item.quantity}</td>
+        <td>${item.weight}</td>
+        <td>${item.tare}</td>
+        <td>${item.newWeight}</td>
+        <td>${displayPrice}</td>
+        <td>${displayComment}</td>
+        <td>
+        <div style="display:flex;">
+        <button class="action-btn edit" onclick="editItem(${realIndex})">Επεξεργασία</button>
+        <button class="action-btn delete" onclick="deleteItem(${realIndex})">Διαγραφή</button>
+        </div>
+        </td>
+        </tr>`;
+    });
+
+    document.getElementById('content').innerHTML = `
+    <div class="table-wrap">
+    <table>
+    <thead><tr><th>Κωδικός</th><th>Περιγραφή</th><th>Lot Number</th><th>Ποσότητα</th><th>Μικτό Βάρος</th><th>Απόβαρο</th><th>Καθαρό Βάρος</th><th>Τιμή</th><th>Σχόλιο</th><th>Ενέργειες</th></tr></thead>
+    <tbody>${rows}</tbody>
+    </table>
+    </div>`;
+}
+
+function openExportModal() { document.getElementById('exportModal').style.display = 'flex'; }
+function closeExportModal() { document.getElementById('exportModal').style.display = 'none'; }
+
+function generateExcelData() {
+    let itemsArr = [];
+    if (data[selectedClient] && data[selectedClient].items) {
+        itemsArr = Object.values(data[selectedClient].items);
+    }
+    let worksheetRows = itemsArr.map(item => ({
+        "Κωδικός": item.code, "Περιγραφή": '', "Αριθμός Παρτίδας": item.lotNumber || '',
+        "Ποσότητα": item.quantity, "Μικτό Βάρος": item.weight, "Απόβαρο": item.tare, "Καθαρό Βάρος": item.newWeight,
+        "Τιμή": item.price !== undefined ? Number(item.price) : 0,
+        "Σχόλιο": item.comment !== undefined ? item.comment : ''
+    }));
+    let totalItems = itemsArr.length;
+    let totalQty = itemsArr.reduce((a, b) => a + Number(b.quantity), 0);
+    let totalNet = itemsArr.reduce((a, b) => a + Number(b.newWeight), 0);
+
+    // worksheetRows.push({});
+    // worksheetRows.push({ "Κωδικός (Code)": "ΣΥΝΟΛΙΚΑ ΣΤΟΙΧΕΙΑ (SUMMARY)" });
+    // worksheetRows.push({ "Κωδικός (Code)": "Σύνολο Προϊόντων:", "Περιγραφή (Description)": totalItems });
+    // worksheetRows.push({ "Κωδικός (Code)": "Συνολική Ποσότητα:", "Περιγραφή (Description)": totalQty });
+    // worksheetRows.push({ "Κωδικός (Code)": "Συνολικό Καθαρό Βάρος:", "Περιγραφή (Description)": Number(totalNet.toFixed(2)) });
+    return worksheetRows;
+}
+
+function downloadExcel() {
+    if (!selectedClient) return;
+    let worksheetRows = generateExcelData();
+    const ws = XLSX.utils.json_to_sheet(worksheetRows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Inventory Report");
+    XLSX.writeFile(wb, `${selectedClient}.xlsx`);
+}
+
+function copyToClipboard() {
+    if (!selectedClient) return;
+    let filteredItems = getFilteredItems();
+    if (filteredItems.length === 0) return alert("Δεν υπάρχουν είδη στη λίστα για αντιγραφή.");
+    
+    let textResult = "";
+    filteredItems.forEach(item => {
+        let p = item.price !== undefined ? Number(item.price).toFixed(2) : '0.00';
+        textResult += `${item.code}\t\t${item.lotNumber || ''}\t${item.quantity}\t${item.weight}\t${item.tare}\t${item.newWeight}\t${p}\n`;
+    });
+    
+    navigator.clipboard.writeText(textResult).then(() => {
+        const copyBtn = document.getElementById('copyClipboardBtn');
+        const originalText = copyBtn.textContent;
+        copyBtn.textContent = "✅ Αντιγράφηκε με επιτυχία!";
+        copyBtn.style.background = "var(--green)";
+        setTimeout(() => {
+            copyBtn.textContent = originalText;
+            copyBtn.style.background = "var(--teal)";
+            closeExportModal();
+        }, 1200);
+    });
+}
+
+async function sendBrevoEmail() {
+    const apiKey = CONFIG.brevoApiKey.trim();
+    const recipient = CONFIG.recipientEmail.trim();
+    const btn = document.getElementById('emailSendBtn');
+    
+    btn.textContent = "Δημιουργία & Αποστολή...";
+    btn.disabled = true;
+
+    let clientId = data[selectedClient].id || '00000';
+    const today = new Date();
+    const formattedDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+
+    let worksheetRows = generateExcelData();
+    const ws = XLSX.utils.json_to_sheet(worksheetRows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Inventory Report");
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
+
+    const payload = {
+        sender: { name: "Weight Manager App", email: "kookydynamo@gmail.com" },
+        to: [{ email: recipient }],
+        subject: `${selectedClient} | ${clientId} | ${formattedDate}`,
+        htmlContent: `<p>Παρακαλώ βρείτε συνημμένο ζυγολόγιο σε αρχείο Excel</p>`,
+        attachment: [{ content: wbout, name: `${selectedClient}.xlsx` }]
+    };
+
+    try {
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: { 'accept': 'application/json', 'api-key': apiKey, 'content-type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (response.ok) { 
+            alert(`Το email στάλθηκε με επιτυχία στο ${recipient}!`); 
+            closeExportModal(); 
+        } else {
+            const errorData = await response.json();
+            alert("Σφάλμα Brevo: " + (errorData.message || response.statusText));
+        }
+    } catch (error) { 
+        alert("Προέκυψε σφάλμα (Failed to fetch).\n\nΑν έχετε Ad-Blocker ή χρησιμοποιείτε Brave Browser, απενεργοποιήστε τα προσωρινά για αυτή τη σελίδα."); 
+    }
+    finally { btn.textContent = "✉ Αποστολή Αναφοράς μέσω Email"; btn.disabled = false; }
+}
+
+function openModal(){
+    if (!selectedClient) return alert('Επιλέξτε πρώτα έναν πελάτη');
+    editingIndex = null;
+    document.getElementById('modalTitle').textContent = 'Προσθήκη Είδους';
+    document.getElementById('saveBtn').textContent = 'Προσθήκη';
+    document.getElementById('modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('code').focus(), 100);
+}
+
+function closeModal(){
+    document.getElementById('modal').style.display = 'none';
+    editingIndex = null;
+    document.getElementById('code').value = '';
+    document.getElementById('quantity').value = '';
+    document.getElementById('weight').value = '';
+    document.getElementById('tare').value = '';
+    document.getElementById('newWeight').value = '';
+    document.getElementById('price').value = '';
+    document.getElementById('comment').value = '';
+}
+
+function editItem(index){
+    let itemsArr = Object.values(data[selectedClient].items || {});
+    const item = itemsArr[index];
+    editingIndex = index;
+    document.getElementById('code').value = item.code;
+    document.getElementById('quantity').value = item.quantity;
+    document.getElementById('weight').value = item.weight;
+    document.getElementById('tare').value = item.tare;
+    document.getElementById('newWeight').value = item.newWeight;
+    document.getElementById('price').value = item.price !== undefined ? item.price : '';
+    document.getElementById('comment').value = item.comment !== undefined ? item.comment : '';
+    
+    document.getElementById('modalTitle').textContent = 'Επεξεργασία Είδους';
+    document.getElementById('saveBtn').textContent = 'Αποθήκευση';
+    document.getElementById('modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('code').focus(), 100);
+}
+
+function saveItem(){
+    const q = Number(document.getElementById('quantity').value);
+    const w = Number(document.getElementById('weight').value);
+    const t = Number(document.getElementById('tare').value);
+    const p = document.getElementById('price').value !== '' ? Number(document.getElementById('price').value) : 0;
+    let transformedCode = convertToGreekUppercase(document.getElementById('code').value.trim());
+    let transformedComment = convertToGreekUppercase(document.getElementById('comment').value.trim());
+
+    const item = { 
+        code: transformedCode, 
+        lotNumber: '', 
+        quantity: q, 
+        weight: w, 
+        tare: t, 
+        newWeight: Number((w - (t * q)).toFixed(2)),
+        price: p,
+        comment: transformedComment
+    };
+
+    if (!item.code || isNaN(item.quantity) || isNaN(item.weight) || isNaN(item.tare) || isNaN(item.price)) return alert('Παρακαλώ συμπληρώστε σωστά όλα τα πεδία');
+
+    let itemsArr = [];
+    if (data[selectedClient] && data[selectedClient].items) { itemsArr = Object.values(data[selectedClient].items); }
+
+    if (editingIndex !== null) { itemsArr[editingIndex] = item; } else { itemsArr.push(item); }
+
+    set(ref(db, 'clientsData/' + selectedClient + '/items'), itemsArr).then(() => { closeModal(); });
+}
+
+function deleteItem(index){
+    if (confirm('Διαγραφή είδους;')) {
+        let itemsArr = Object.values(data[selectedClient].items || {});
+        itemsArr.splice(index, 1);
+        set(ref(db, 'clientsData/' + selectedClient + '/items'), itemsArr);
+    }
+}
+
+// ⌨ Real-time Listeners για μετατροπή σε Ελληνικά & Κεφαλαία
+const codeInp = document.getElementById('code');
+codeInp.addEventListener('input', function() { this.value = convertToGreekUppercase(this.value); });
+
+const commentInp = document.getElementById('comment');
+commentInp.addEventListener('input', function() { this.value = convertToGreekUppercase(this.value); });
+
+const newClientInp = document.getElementById('newClientNameInp');
+newClientInp.addEventListener('input', function() { this.value = convertToGreekUppercase(this.value); });
+
+const renameClientInp = document.getElementById('renameClientNameInp');
+renameClientInp.addEventListener('input', function() { this.value = convertToGreekUppercase(this.value); });
+
+
+// Keyboard Navigation για όλα τα Modals
+const modalInputs = [
+    codeInp, 
+    document.getElementById('quantity'), 
+    document.getElementById('weight'), 
+    document.getElementById('tare'),
+    document.getElementById('price'),
+    commentInp
+];
+modalInputs.forEach((input, index) => {
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (index < modalInputs.length - 1) modalInputs[index + 1].focus(); else saveItem();
+        }
+    });
+});
+
+newClientInp.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); submitAddClient(); }
+});
+
+renameClientInp.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); submitRenameClient(); }
+});
+
+document.getElementById('loginPassword').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') handleLogin();
+});
+document.getElementById('loginUsername').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('loginPassword').focus();
+});
+
+checkExistingSession();
+</script>
+</body>
+</html>
